@@ -18,41 +18,8 @@
         </div>
 
         <script>
-            var trainImage = function(aNet, aTrainer, aUrl, aClass) {
-                return new Promise(function(resolve, reject) {
-
-                    console.log("Training " + aUrl);
-
-                    var theElement = document.createElement("img");
-                    theElement.setAttribute("width", 32);
-                    theElement.setAttribute("height", 32);
-                    theElement.setAttribute("crossorigin", "anonymous");
-                    theElement.src = aUrl;
-                    theElement.addEventListener("load", function () {
-                        var theImageVol = convnetjs.img_to_vol(theElement);
-                        aTrainer.train(theImageVol, aClass);
-
-                        var theResult = aNet.forward(theImageVol);
-                        var theClass0Prob = theResult.w[0];
-                        var theClass1Prob = theResult.w[1];
-
-                        document.getElementById("trainingdata").removeChild(theElement);
-
-                        console.log("Training finished for " + aUrl + "Cls0 = " + theClass0Prob + " Cls1 = " + theClass1Prob + " expected = " + aClass);
-
-                        resolve();
-                    });
-                    theElement.addEventListener("error", function() {
-                        document.getElementById("trainingdata").removeChild(theElement);
-
-                        console.log("Training finished for " + aUrl + "(not found)");
-
-                        resolve();
-                    });
-
-                    document.getElementById("trainingdata").appendChild(theElement);
-                });
-            };
+            var theImageWidth = 32;
+            var theImageHeight = 32;
 
             var verifyImage = function(aNet, aUrl, aClass) {
                 return new Promise(function(resolve, reject) {
@@ -63,8 +30,8 @@
                     theContentDiv.appendChild(document.createTextNode(aClass));
 
                     var theElement = document.createElement("img");
-                    theElement.setAttribute("width", 32);
-                    theElement.setAttribute("height", 32);
+                    theElement.setAttribute("width", theImageWidth);
+                    theElement.setAttribute("height", theImageHeight);
                     theElement.setAttribute("crossorigin", "anonymous");
                     theElement.src = aUrl;
                     theElement.addEventListener("load", function () {
@@ -92,11 +59,50 @@
                 });
             };
 
+            var trainImage = function(aNet, aTrainer, aUrl, aClass) {
+                return new Promise(function(resolve, reject) {
+
+                    console.log("Training " + aUrl);
+
+                    var theElement = document.createElement("img");
+                    theElement.setAttribute("width", theImageWidth);
+                    theElement.setAttribute("height", theImageHeight);
+                    theElement.setAttribute("crossorigin", "anonymous");
+                    theElement.src = aUrl;
+                    theElement.addEventListener("load", function () {
+                        var theImageVol = convnetjs.img_to_vol(theElement);
+                        var theTrainingStats = aTrainer.train(theImageVol, aClass);
+
+                        var lossx = theTrainingStats.cost_loss;
+                        var lossw = theTrainingStats.l2_decay_loss;
+
+                        var theResult = aNet.forward(theImageVol);
+                        var theClass0Prob = theResult.w[0];
+                        var theClass1Prob = theResult.w[1];
+
+                        document.getElementById("trainingdata").removeChild(theElement);
+
+                        console.log("Training finished for " + aUrl + "Cls0 = " + theClass0Prob + " Cls1 = " + theClass1Prob + " expected = " + aClass);
+
+                        resolve();
+                    });
+                    theElement.addEventListener("error", function() {
+                        document.getElementById("trainingdata").removeChild(theElement);
+
+                        console.log("Training finished for " + aUrl + "(not found)");
+
+                        resolve();
+                    });
+
+                    document.getElementById("trainingdata").appendChild(theElement);
+                });
+            };
+
             var layer_defs = [];
 
-            layer_defs.push({type:'input', out_sx:32, out_sy:32, out_depth:3}); // declare size of input
+            layer_defs.push({type:'input', out_sx:theImageWidth, out_sy:theImageHeight, out_depth:3}); // declare size of input
             // output Vol is of size 32x32x3 here
-            layer_defs.push({type:'conv', sx:5, filters:16, stride:1, pad:2, activation:'relu'});
+            layer_defs.push({type:'conv', sx:5, filters:16, stride:1, pad:5, activation:'relu'});
             // the layer will perform convolution with 16 kernels, each of size 5x5.
             // the input will be padded with 2 pixels on all sides to make the output Vol of the same size
             // output Vol will thus be 32x32x16 at this point
@@ -128,7 +134,7 @@
                 39769920,
                 45014395,
                 44597704,
-                45171262,
+//                45171262,
                 31248523,
                 45518735,
                 45518647,
@@ -178,13 +184,13 @@
                 28673395,
                 20942330,
                 39182575,
-                3016293,
+                //3016293,
                 45050097,
                 45191991,
                 44946754,
                 43823726,
                 43831030,
-                3066183,
+                //3066183,
                 18820900,
                 23165363,
                 26751662,
@@ -195,7 +201,7 @@
                 37880120,
                 37429849,
                 19360147,
-                39282018,
+//                39282018,
                 33916652,
                 41089316,
                 41095252,
@@ -287,8 +293,8 @@
                 44779694,
                 44779686,
                 44779217,
-                3069092,
-                5009992,
+                //3069092,
+                //5009992,
                 44779702,
                 44920330,
                 44920299,
@@ -321,7 +327,7 @@
                 44593601,
                 45228791,
                 45379996,
-                45173928,
+//                45173928,
                 45411658,
                 45455319,
                 45455307,
@@ -454,12 +460,15 @@
                 44591599
             ];
 
-            var theVerificationSize = 50;
+            var theVerificationSize = 15;
 
             var thePromises = [];
 
-            for (var i = 0; i < theNegativeClasses.length - theVerificationSize; i++) {
+            for (var i = 0; i < theNegativeClasses.length; i++) {
                 thePromises.push(trainImage(net, trainer, "https://media.buch.de/img-adb/" + theNegativeClasses[i] + "-00-00/foo.jpg", 0));
+            }
+
+            for (var i = 0; i < thePositiveClasses.length; i++) {
                 thePromises.push(trainImage(net, trainer, "https://media.buch.de/img-adb/" + thePositiveClasses[i] + "-00-00/foo.jpg", 1));
             }
 
@@ -484,12 +493,10 @@
             var theVerifyRandomResults = function() {
                 for (var i=theNegativeClasses.length-theVerificationSize;i<theNegativeClasses.length;i++) {
                     verifyImage(net, "https://media.buch.de/img-adb/" + theNegativeClasses[i] + "-00-00/foo.jpg", "Class 0:").then(function(aResult) {
-                        if (aResult.class0Prob > aResult.class1Prob) {
-                            // Correctly negative
-                            theTrueNegatives++;
-                        } else {
-                            // Is negative, but identified as positive
+                        if (aResult.class1Prob > aResult.class0Prob) {
                             theFalsePositives++;
+                        } else {
+                            theTrueNegatives++;
                         }
                         reportPrecisionRecall();
                     });
@@ -498,10 +505,8 @@
                 for (var i=thePositiveClasses.length-theVerificationSize;i<thePositiveClasses.length;i++) {
                     verifyImage(net, "https://media.buch.de/img-adb/" + thePositiveClasses[i] + "-00-00/foo.jpg", "Class 1:").then(function(aResult) {
                         if (aResult.class1Prob > aResult.class0Prob) {
-                            // Correctly positive
                             theTruePositives++;
                         } else {
-                            // Positive, but identified as negative
                             theFalseNegatives++;
                         }
                         reportPrecisionRecall();
