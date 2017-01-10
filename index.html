@@ -3,43 +3,516 @@
         <script src="convnet.js"></script>
     </head>
     <body>
-        <script>
-            var layer_defs = [];
 
+        <h1>Currently training:</h1>
+        <div id="trainingdata">
+
+        </div>
+
+        <h1>Verification:</h1>
+        <div id="testdata">
+        </div>
+
+        <div id="precisionrecall">
+
+        </div>
+
+        <script>
+            var trainImage = function(aNet, aTrainer, aUrl, aClass) {
+                return new Promise(function(resolve, reject) {
+
+                    console.log("Training " + aUrl);
+
+                    var theElement = document.createElement("img");
+                    theElement.setAttribute("width", 32);
+                    theElement.setAttribute("height", 32);
+                    theElement.setAttribute("crossorigin", "anonymous");
+                    theElement.src = aUrl;
+                    theElement.addEventListener("load", function () {
+                        var theImageVol = convnetjs.img_to_vol(theElement);
+                        aTrainer.train(theImageVol, aClass);
+
+                        var theResult = aNet.forward(theImageVol);
+                        var theClass0Prob = theResult.w[0];
+                        var theClass1Prob = theResult.w[1];
+
+                        document.getElementById("trainingdata").removeChild(theElement);
+
+                        console.log("Training finished for " + aUrl + "Cls0 = " + theClass0Prob + " Cls1 = " + theClass1Prob + " expected = " + aClass);
+
+                        resolve();
+                    });
+                    theElement.addEventListener("error", function() {
+                        document.getElementById("trainingdata").removeChild(theElement);
+
+                        console.log("Training finished for " + aUrl + "(not found)");
+
+                        resolve();
+                    });
+
+                    document.getElementById("trainingdata").appendChild(theElement);
+                });
+            };
+
+            var verifyImage = function(aNet, aUrl, aClass) {
+                return new Promise(function(resolve, reject) {
+
+                    console.log("Verifying " + aUrl);
+
+                    var theContentDiv = document.createElement("div");
+                    theContentDiv.appendChild(document.createTextNode(aClass));
+
+                    var theElement = document.createElement("img");
+                    theElement.setAttribute("width", 32);
+                    theElement.setAttribute("height", 32);
+                    theElement.setAttribute("crossorigin", "anonymous");
+                    theElement.src = aUrl;
+                    theElement.addEventListener("load", function () {
+                        var theImageVol = convnetjs.img_to_vol(theElement);
+
+                        var theResult = aNet.forward(theImageVol);
+                        var theClass0Prob = theResult.w[0];
+                        var theClass1Prob = theResult.w[1];
+
+                        theContentDiv.append(document.createTextNode("Class 0 (" + theClass0Prob*100 + "%)"));
+                        theContentDiv.append(document.createTextNode("Class 1 (" + theClass1Prob*100 + "%)"));
+
+                        resolve({
+                            class0Prob: theClass0Prob,
+                            class1Prob: theClass1Prob
+                        });
+                    });
+                    theElement.addEventListener("error", function() {
+                        document.getElementById("testdata").removeChild(theContentDiv);
+                    });
+
+                    theContentDiv.appendChild(theElement);
+
+                    document.getElementById("testdata").appendChild(theContentDiv);
+                });
+            };
+
+            var layer_defs = [];
 
             layer_defs.push({type:'input', out_sx:32, out_sy:32, out_depth:3}); // declare size of input
             // output Vol is of size 32x32x3 here
             layer_defs.push({type:'conv', sx:5, filters:16, stride:1, pad:2, activation:'relu'});
-
             // the layer will perform convolution with 16 kernels, each of size 5x5.
             // the input will be padded with 2 pixels on all sides to make the output Vol of the same size
             // output Vol will thus be 32x32x16 at this point
             layer_defs.push({type:'pool', sx:2, stride:2});
-
             // output Vol is of size 16x16x16 here
-
             layer_defs.push({type:'conv', sx:5, filters:20, stride:1, pad:2, activation:'relu'});
             // output Vol is of size 16x16x20 here
-
             layer_defs.push({type:'pool', sx:2, stride:2});
             // output Vol is of size 8x8x20 here
-
             layer_defs.push({type:'conv', sx:5, filters:20, stride:1, pad:2, activation:'relu'});
             // output Vol is of size 8x8x20 here
-
             layer_defs.push({type:'pool', sx:2, stride:2});
-            // output Vol is of size 4x4x20 here
 
-            layer_defs.push({type:'softmax', num_classes:10});
-            // output Vol is of size 1x1x10 here
+            // output Vol is of size 4x4x20 here
+            layer_defs.push({type:'softmax', num_classes:2});
 
             net = new convnetjs.Net();
             net.makeLayers(layer_defs);
 
-            // helpful utility for converting images into Vols is included
-            //var x = convnetjs.img_to_vol(document.getElementById('some_image'))
+            var trainer = new convnetjs.Trainer(net, {method: 'adadelta', l2_decay: 0.001,
+                batch_size: 10});
 
-            //var output_probabilities_vol = net.forward(x)
+            var theNegativeClasses = [
+                37917737,
+                39349515,
+                33175179,
+                37039889,
+                38072724,
+                39769920,
+                45014395,
+                44597704,
+                45171262,
+                31248523,
+                45518735,
+                45518647,
+                45644375,
+                45818713,
+                45530112,
+                45741807,
+                45886429,
+                45810457,
+                45538638,
+                45572513,
+                45629999,
+                45623235,
+                45677939,
+                45522282,
+                45856486,
+                45755520,
+                45909054,
+                45811109,
+                45673317,
+                45776446,
+                45524796,
+                45560521,
+                45530237,
+                45673391,
+                45663246,
+                45675156,
+                45703432,
+                45820150,
+                45906580,
+                45538808,
+                45855148,
+                45909195,
+                45883040,
+                45899330,
+                45883681,
+                45909214,
+                45896713,
+                45855187,
+                45538806,
+                45664144,
+                45885556,
+                45887378,
+                45886073,
+                45892420,
+                33818832,
+                28673395,
+                20942330,
+                39182575,
+                3016293,
+                45050097,
+                45191991,
+                44946754,
+                43823726,
+                43831030,
+                3066183,
+                18820900,
+                23165363,
+                26751662,
+                28877261,
+                32158857,
+                26751541,
+                35058801,
+                37880120,
+                37429849,
+                19360147,
+                39282018,
+                33916652,
+                41089316,
+                41095252,
+                16422306,
+                30632757,
+                38745070,
+                32288381,
+                38909984,
+                39940438,
+                34509396,
+                42781637,
+                23202536,
+                44153241,
+                44260648,
+                44261015,
+                44315276,
+                44284151,
+                44284654,
+                44356158,
+                44341960,
+                44341920,
+                44341956,
+                44476400,
+                44476406,
+                44476359,
+                44468343,
+                44476369,
+                44476540,
+                44476424,
+                44476578,
+                44476513,
+                44476387,
+                44476422,
+                44476413,
+                44476432,
+                44476586,
+                44476572,
+                44476479,
+                44476443,
+                44476549,
+                44476451,
+                44429924,
+                44468040,
+                44468073,
+                44468066,
+                44381761,
+                44468039,
+                44468058,
+                44468860,
+                44382854,
+                44468094,
+                44468854,
+                44468052,
+                44468075,
+                44381772,
+                44356250,
+                44272562,
+                44284276,
+                44422742,
+                44339349,
+                44468856,
+                44135860,
+                44135655,
+                44468071,
+                44359886,
+                44512955,
+                44195327,
+                44590511,
+                44591650,
+                44590637,
+                44591163,
+                44591176,
+                44591555,
+                41591494,
+                44591371,
+                44591360,
+                44591258,
+                44591182,
+                44591341,
+                44590485,
+                44591248,
+                44590467,
+                44590282,
+                44590730,
+                44591570,
+                43823706,
+                44590747,
+                44779693,
+                44779694,
+                44779686,
+                44779217,
+                3069092,
+                5009992,
+                44779702,
+                44920330,
+                44920299,
+                44920346,
+                44920214,
+                44752976,
+                44752943,
+                44753113,
+                44753246,
+                44753117,
+                44753005,
+                44590325,
+                44590445,
+                44590313,
+                44591155,
+                44591548,
+                44591150,
+                44591013,
+                44590321,
+                44590830,
+                44591264,
+                44591178,
+                44591071,
+                44590781,
+                44591427,
+                44591374,
+                44591578,
+                44593600,
+                44593599,
+                44593601,
+                45228791,
+                45379996,
+                45173928,
+                45411658,
+                45455319,
+                45455307,
+                45780492
+            ];
+
+            var thePositiveClasses = [
+                20932354,
+                38551321,
+                40341751,
+                34964669,
+                34908153,
+                34925798,
+                34925077,
+                37068247,
+                40341665,
+                39702576,
+                33753333,
+                35428372,
+                44785369,
+                45367744,
+                44677953,
+                45001830,
+                45097477,
+                44619846,
+                45171093,
+                45367671,
+                44671090,
+                44785563,
+                44978741,
+                44909818,
+                44786102,
+                44597781,
+                45270560,
+                45491462,
+                45447332,
+                45516211,
+                45431714,
+                45516539,
+                45391490,
+                45518673,
+                45403571,
+                45516964,
+                45516870,
+                45391520,
+                45518767,
+                45518604,
+                45545590,
+                45582408,
+                45570856,
+                45574880,
+                45612129,
+                45550320,
+                45612474,
+                45629933,
+                45550637,
+                45560860,
+                45612414,
+                45621440,
+                45560632,
+                45623294,
+                45592950,
+                45620137,
+                45524874,
+                45560620,
+                45550807,
+                45592152,
+                45622918,
+                45622916,
+                45622973,
+                45550689,
+                45538598,
+                45627824,
+                45612540,
+                45612261,
+                45612494,
+                45539038,
+                45530180,
+                45612505,
+                45621685,
+                45622780,
+                45628681,
+                45570602,
+                45628102,
+                45622775,
+                45640867,
+                45666469,
+                45530276,
+                45538862,
+                45569926,
+                38449905,
+                34908825,
+                32218282,
+                37178667,
+                41042571,
+                33289926,
+                44468324,
+                44476407,
+                44476515,
+                44468342,
+                44476626,
+                44476530,
+                44476628,
+                44422697,
+                44359907,
+                42879643,
+                44380366,
+                44591072,
+                44590426,
+                44590301,
+                44590351,
+                44779325,
+                44779333,
+                44779348,
+                44899765,
+                37838144,
+                44899710,
+                44899520,
+                44899312,
+                44899486,
+                44920262,
+                44920218,
+                44920226,
+                44920261,
+                44730596,
+                44730927,
+                44899686,
+                44679473,
+                44590809,
+                44591599
+            ];
+
+            var theVerificationSize = 50;
+
+            var thePromises = [];
+
+            for (var i = 0; i < theNegativeClasses.length - theVerificationSize; i++) {
+                thePromises.push(trainImage(net, trainer, "https://media.buch.de/img-adb/" + theNegativeClasses[i] + "-00-00/foo.jpg", 0));
+                thePromises.push(trainImage(net, trainer, "https://media.buch.de/img-adb/" + thePositiveClasses[i] + "-00-00/foo.jpg", 1));
+            }
+
+            var theTruePositives = 0;
+            var theTrueNegatives = 0;
+
+            var theFalsePositives = 0;
+            var theFalseNegatives = 0;
+
+            var reportPrecisionRecall = function() {
+                var theTotal = theTruePositives + theTrueNegatives + theFalsePositives + theFalseNegatives;
+                var theTotalRight = theTruePositives + theTrueNegatives;
+                var theElement = document.getElementById("precisionrecall");
+                theElement.innerHTML = "True Pos : " + theTruePositives + "<br>" +
+                                       "True Neg : " + theTrueNegatives + "<br>" +
+                                       "False Pos : " + theFalsePositives + "<br>" +
+                                       "False Neg : " + theFalseNegatives + "<br>" +
+                                       "Total Samples : " + theTotal + "<br>" +
+                                       "Percent correct : " + (theTotalRight / theTotal * 100);
+            };
+
+            var theVerifyRandomResults = function() {
+                for (var i=theNegativeClasses.length-theVerificationSize;i<theNegativeClasses.length;i++) {
+                    verifyImage(net, "https://media.buch.de/img-adb/" + theNegativeClasses[i] + "-00-00/foo.jpg", "Class 0:").then(function(aResult) {
+                        if (aResult.class0Prob > aResult.class1Prob) {
+                            // Correctly negative
+                            theTrueNegatives++;
+                        } else {
+                            // Is negative, but identified as positive
+                            theFalsePositives++;
+                        }
+                        reportPrecisionRecall();
+                    });
+                }
+
+                for (var i=thePositiveClasses.length-theVerificationSize;i<thePositiveClasses.length;i++) {
+                    verifyImage(net, "https://media.buch.de/img-adb/" + thePositiveClasses[i] + "-00-00/foo.jpg", "Class 1:").then(function(aResult) {
+                        if (aResult.class1Prob > aResult.class0Prob) {
+                            // Correctly positive
+                            theTruePositives++;
+                        } else {
+                            // Positive, but identified as negative
+                            theFalseNegatives++;
+                        }
+                        reportPrecisionRecall();
+                    });
+                };
+            };
+
+            Promise.all(thePromises).then(function() {
+                console.log("Training done");
+                theVerifyRandomResults();
+            });
         </script>
     </body>
 </html>
