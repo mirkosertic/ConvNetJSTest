@@ -27,7 +27,6 @@
                     console.log("Verifying " + aUrl);
 
                     var theContentDiv = document.createElement("div");
-                    theContentDiv.appendChild(document.createTextNode(aClass));
 
                     var theElement = document.createElement("img");
                     theElement.setAttribute("width", theImageWidth);
@@ -35,14 +34,14 @@
                     theElement.setAttribute("crossorigin", "anonymous");
                     theElement.src = aUrl;
                     theElement.addEventListener("load", function () {
-                        var theImageVol = convnetjs.img_to_vol(theElement);
+                        var theImageVol = convnetjs.img_to_vol(theElement, true);
 
                         var theResult = aNet.forward(theImageVol);
                         var theClass0Prob = theResult.w[0];
                         var theClass1Prob = theResult.w[1];
 
-                        theContentDiv.append(document.createTextNode("Class 0 (" + theClass0Prob*100 + "%)"));
-                        theContentDiv.append(document.createTextNode("Class 1 (" + theClass1Prob*100 + "%)"));
+                        theContentDiv.append(document.createTextNode(" CLS0(" + theClass0Prob*100 + "%)"));
+                        theContentDiv.append(document.createTextNode(" CLS1(" + theClass1Prob*100 + "%)"));
 
                         resolve({
                             class0Prob: theClass0Prob,
@@ -54,6 +53,7 @@
                     });
 
                     theContentDiv.appendChild(theElement);
+                    theContentDiv.appendChild(document.createTextNode("IS=" + aClass));
 
                     document.getElementById("testdata").appendChild(theContentDiv);
                 });
@@ -70,7 +70,7 @@
                     theElement.setAttribute("crossorigin", "anonymous");
                     theElement.src = aUrl;
                     theElement.addEventListener("load", function () {
-                        var theImageVol = convnetjs.img_to_vol(theElement);
+                        var theImageVol = convnetjs.img_to_vol(theElement, true);
                         var theTrainingStats = aTrainer.train(theImageVol, aClass);
 
                         var lossx = theTrainingStats.cost_loss;
@@ -100,8 +100,8 @@
 
             var layer_defs = [];
 
-            layer_defs.push({type:'input', out_sx:theImageWidth, out_sy:theImageHeight, out_depth:3}); // declare size of input
-            // output Vol is of size 32x32x3 here
+            layer_defs.push({type:'input', out_sx:theImageWidth, out_sy:theImageHeight, out_depth:1}); // declare size of input
+            // output Vol is of size 32x32x1 here(Grayscale)
             layer_defs.push({type:'conv', sx:5, filters:16, stride:1, pad:5, activation:'relu'});
             // the layer will perform convolution with 16 kernels, each of size 5x5.
             // the input will be padded with 2 pixels on all sides to make the output Vol of the same size
@@ -460,7 +460,7 @@
                 44591599
             ];
 
-            var theVerificationSize = 15;
+            var theVerificationSize = 30;
 
             var thePromises = [];
 
